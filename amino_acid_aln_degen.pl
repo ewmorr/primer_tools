@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 #Eric Morrison
 #041318
-#amino_acid_primer_finder.pl
-#This script searches an amino acid sequence using window size of 6 or 7 aa (18 or 21 nt) and reports the number of possible nt sequence combinations for each sequence (minimum is length of nt sequence and maximum is 4^n). The search is performed by comparing aa sequence to a table with the number of nt combinations per aa.
+#Usage: perl amino_acid_aln_degen.pl [seq.faa] [seq length]
+#This script takes an amino acid sequence alignment file as input. You must also designate an integer value for length of sequence to search in number amino acids.
 
 use strict;
 use warnings;
@@ -81,28 +81,7 @@ my %aa_tab = (
 	"K" => 2,
 	"R" => 6);
 
-my %nt2_tab = ( #These need to be modified to correct N
-	"I" => 3,
-	"L" => 6,
-	"V" => 4,
-	"F" => 2,
-	"M" => 1,
-	"C" => 2,
-	"A" => 4,
-	"G" => 4,
-	"P" => 4,
-	"T" => 4, 
-	"S" => 6,
-	"Y" => 2,
-	"W" => 1,
-	"Q" => 2,
-	"N" => 2, 
-	"H" => 2,
-	"E" => 2,
-	"D" => 2,
-	"K" => 2,
-	"R" => 6
-	);	
+
 	foreach my $aa (@chunk)
 		{
 		if(defined($aa_tab{$aa}) == 0)# in case of gaps or other non-aa characters
@@ -119,10 +98,10 @@ my %nt2_tab = ( #These need to be modified to correct N
 	
 sub usage(){
 	print STDERR q(
-Usage: perl amino_acid_primer_finder.pl [seq.faa] [primer length]
-This script takes an amino acid sequence file as input. You must also designate an integer value for length of primer to serach in number amino acids (common options are 6 and 7).
+Usage: perl amino_acid_aln_degen.pl [seq.faa] [seq length]
+This script takes an amino acid sequence alignment file as input. You must also designate an integer value for length of sequence to search in number amino acids.
 
-The output is a list with the sequence ID, sequence position starting at the first base of the potential primer sequence, and the number of potential combinations of nucletides for that sequence.
+The output is a list with the sequence ID, sequence position starting at the first base of the sequence, and the number of potential combinations of nucletides for that sequence.
 
 Prints to STDOUT. Redirect like this: cmd > file.txt
 );
