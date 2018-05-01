@@ -1,8 +1,8 @@
 #!/usr/bin/perl
-#aln_gap_filter.pl
+#aa_alignment_barcode_candidates.pl
 #Eric Morrison
-#042618
-#Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [min length to preserve sequence]
+#042818
+#Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [min length to preserve sequence] [max degeneracy for primer]
 #The script takes an amino acid alignment file as input (tested with clustalo aa alignment). The alignments are searched by positions for gaps (-). Chunks of sequence meeting the minimum length requirement are retained and output as separate fasta files (e.g. inputname.1).
 
 use strict;
@@ -10,23 +10,23 @@ use warnings;
 
 if(scalar(@ARGV) == 0 || $ARGV[0] eq "-h")
 	{
-	&usage();
+	usage();
 	}
 if(defined($ARGV[1]) == 0)
 	{
 	die "\nYou didn't input a minimum length. Exiting...\n\n"
 	}
+if(defined($ARGV[2]) == 0)
+	{
+	die "\nYou didn't input a maximum degeneracy for primers. Exiting...\n\n"
+	}
 
 my $in = $ARGV[0];
-my $dir = $ARGV[1];
-my $minLen = $ARGV[2];
+my $minLen = $ARGV[1];
+my $maxDegen = $ARGV[2];
 
 open(IN, "$in") || die "Can't open amino acid sequence file.\n";
 chomp(my @aln = <IN>);
-
-#strip filename to write to output
-$in =~ /.*\/(.*)\.*/;
-my $fileName = $1;
 
 #rm MS linefeeds if present
 if(scalar(@aln) == 1)
@@ -41,8 +41,8 @@ shift @aln;
 
 #hash for sequences indexed by fasta header
 my %aln;
-#array for keys to retain original sorting
-my @alnKeys;
+my $seqLen;
+my $numSeqs = 0;
 #split alignments to hash
 for my $seq (@aln)
 	{
@@ -50,141 +50,114 @@ for my $seq (@aln)
 	my $head = shift @seq;
 	$seq = join("", @seq);
 	$aln{$head} = $seq;
-	push(@alnKeys, $head);
+	$seqLen = length($seq);
+	$numSeqs++;
 	}
 
-#find gaps across full alignment. A gap at any position within any sequence is retained in array
-my @gap_pos;
-#index by sequence position
-for(my $i = 0; $i<length$aln{$alnKeys[0]}; $i++)
-	{
-	#index through sequences
-	foreach my $id (@alnKeys)
+###################################
+#Get primer degeneracy by position#
+###################################
+
+my @primerN;
+my @firstBaseN;
+my @lastBaseN;
+for(my $i = 0;$i<$seqLen-6;$i++)
+	{	
+	foreach my $id (keys %aln)
 		{
-		if(substr($aln{$id}, $i, 1) eq "-")
-			{
-			my $not_uniq = 0;
-			foreach my $check (@gap_pos)
-				{
-				if($check == $i)
-					{
-					$not_uniq = 1;
-					}
-				}
-			if($not_uniq == 0)
-				{	
-				push(@gap_pos, $i);
-				}
-			}
+		my @seq = split("", $aln{$id});
+        	#Search with 7 aa window for primers
+	        my @primerChunk = @seq[$i..$i+6];
+	
+		#check for gaps
+                my $gap = 0;
+                foreach my $base(@primerChunk)
+                        {
+                        if($base eq "-")
+                                {
+                                $gap = 1;
+                                }
+                        }
+                if($gap == 1)
+                        {
+                	$primerN[$i] = "NA";
+			$lastBaseN[$i] = "NA";
+			$firstBaseN[$i] = "NA";
+                        last;
+                        }
+
+	        #find n
+	       	my $lastBase = pop(@primerChunk);
+		my $firstBase = @primerChunk[0];
+	        my $aaN = find_aa_n(@primerChunk);
+	        my $lastBaseN = two_bp_n($lastBase);
+		my $firstBaseN = two_bp_n($firstBase);
+	        $aaN *= $lastBaseN;
+		$primerN[$i] += $aaN;
+		$lastBaseN[$i] += $lastBaseN;
+		$firstBaseN[$i] += $firstBaseN;
 		}
 	}
 
-#put chunks of alignments in hash for degeneracy and primer search
-my %alnChunks;
-#Check for no gap alns
-if(scalar(@gap_pos) == 0)
+########################
+#Find candidate primers#
+########################
+
+#find primers that meet degeneracy requirements
+#user supplied max degeneracy, and no degeneracy in last two nt of primer (i.e. == 1)
+my %forward;
+my %reverse;
+for(my $i = 0;$i<@primerN;$i++)
 	{
-	open(OUT, ">$dir/$fileName.full.aln") || die "Can't open output\n";
-	foreach my $id (keys @alnKeys)
-		{
-		#store seqeunce for further processing	
-		$alnChunks{"$fileName.full\t$id"} = $aln{$id};
-		#print to file
-		print OUT ">", $id, "_pos_0_", length($aln{$id})-1, "\n", $aln{$id}, "\n";
-		}
-	exit;
-	}
-
-#file counter for output alignment chunks
-my $fileCount = 0;
-
-#Check for alns with only a single gap which are not properly handled by the main loop
-if(scalar(@gap_pos) == 1)
-	{
-	if($gap_pos[0] > $minLen)
-		{
-		open(OUT, ">$dir/$fileName.single.$fileCount.aln") || die "Can't open output\n";
-		$fileCount++;
-		foreach my $id (@alnKeys)
-			{
-			#store chunk for further processing
-			$alnChunks{"$fileName.full\t$id"} = substr($aln{$id}, 0, $gap_pos[0]);
-			print OUT ">", $id, "_pos_0_", $gap_pos[0]-1, "\n", substr($aln{$id}, 0, $gap_pos[0]), "\n";
-			}
-		}
-	if(length($aln{$alnKeys[0]})-$gap_pos[0] > $minLen)
-		{
-		open(OUT, ">$dir/$fileName.single.$fileCount.aln") || die "Can't open output\n";
-		$fileCount++;
-		foreach my $id (@alnKeys)
-			{
-			#store chunk for further processing
-			$alnChunks{"$fileName.full\t$id"} = substr($aln{$id}, $gap_pos[-1]+1, length($aln{$alnKeys[0]})-$gap_pos[-1]-1);
-			#print chunk to file
-			print OUT ">", $id, "pos_", $gap_pos[-1]+1, "_", length($aln{$alnKeys[0]})-1, "\n", substr($aln{$id}, $gap_pos[-1]+1, length($aln{$alnKeys[0]})-$gap_pos[-1]-1), "\n";
-			}
-		}
-	exit;
-	}
-
-
-
-#Process multiple gap alignments
-#start with zero offset if it is not a gap. 
-if($gap_pos[0] != 0)
-	{
-	if($gap_pos[0] > $minLen)
-		{
-		open(OUT, ">$dir/$fileName.$fileCount.aln") || die "Can't open output\n";
-		$fileCount++;
-		foreach my $id (@alnKeys)
-			{
-			$alnChunks{"$fileName.full\t$id"} = substr($aln{$id}, 0, $gap_pos[0]);
-			print OUT ">", $id, "_pos_0_", $gap_pos[0]-1, "\n", substr($aln{$id}, 0, $gap_pos[0]), "\n";
-			}
-		}
-	}
-#process internal gaps
-for(my $i = 1;$i<@gap_pos;$i++)
-	{
-	if($gap_pos[$i]-$gap_pos[$i-1] < $minLen)
+	if($primerN[$i] eq "NA")
 		{
 		next;
 		}
-	open(OUT, ">$dir/$fileName.$fileCount.aln") || die "Can't open output\n";
-	$fileCount++;
-	foreach my $id (@alnKeys)
+	if($primerN[$i]/$numSeqs <= $maxDegen)
 		{
-		$alnChunks{"$fileName.full\t$id"} = substr($aln{$id}, $gap_pos[$i-1]+1, $gap_pos[$i]-$gap_pos[$i-1]-1);	
-		print OUT ">", $id, "_pos_", $gap_pos[$i-1]+1, "_", $gap_pos[$i]-1, "\n", substr($aln{$id}, $gap_pos[$i-1]+1, $gap_pos[$i]-$gap_pos[$i-1]-1), "\n";
-		}
-	}
-#end with final offset if this is not a gap. 
-if($gap_pos[-1] != length($aln{$alnKeys[0]})-1)
-	{
-	if(length($aln{$alnKeys[0]})-$gap_pos[-1] > $minLen)
-		{
-		open(OUT, ">$dir/$fileName.$fileCount.aln") || die "Can't open output\n";
-		$fileCount++;
-		foreach my $id (@alnKeys)
+		if($lastBaseN[$i]/$numSeqs == 1)
 			{
-			$alnChunks{"$fileName.full\t$id"} = substr($aln{$id}, $gap_pos[-1]+1, length($aln{$alnKeys[0]})-$gap_pos[-1]-1);	
-			print OUT ">", $id, "pos_", $gap_pos[-1]+1, "_", length($aln{$alnKeys[0]})-1, "\n", substr($aln{$id}, $gap_pos[-1]+1, length($aln{$alnKeys[0]})-$gap_pos[-1]-1), "\n";
+			$forward{$i} = $primerN[$i]/$numSeqs;
+			}
+		if($firstBaseN[$i]/$numSeqs == 1)
+			{
+			$reverse{$i} = $primerN[$i]/$numSeqs;
 			}
 		}
 	}
 
-
-
-
-
+#test potential barcode sequence for min length and gaps
+foreach my $f (sort{$a <=> $b} keys %forward)
+	{
+	REVERSE:
+	foreach my $r (sort{$a <=> $b} keys %reverse))
+		{
+		#test length
+		if($r-($f+7) < $minLen){next REVERSE;}
+		#test gaps, if none calculate degeneracy
+		my $barcodeN = 0;
+		foreach my $id (keys %aln)
+			{	
+			my $seq = substr($aln{$id}, $f+7, $r-($f+7);
+			if($seq =~ /-/)
+				{
+				next REVERSE;
+				}else{
+				my @seq = split("",$seq);
+				$barcodeN += find_aa_n(@seq);
+				}	
+			}
+		#print forward and reverse primer position and degeneracy, then print barcode length and degeneracy
+		print "$f\t$r\t$forward{$f}\t$reverse{$r}\t", length($seq), $barcodeN/$numSeqs, "\n";
+		}
+	}
 
 
 ######
 #SUBS#
 ######
 
-sub find_aa_n{
+sub find_aa_n(){
 my @chunk = @_;
 my $chunkN = 1;
 
@@ -210,7 +183,6 @@ my %aa_tab = (
         "K" => 2,
         "R" => 6);
 
-
         foreach my $aa (@chunk)
                 {
                 if(defined($aa_tab{$aa}) == 0)# in case of gaps or other non-aa characters
@@ -224,8 +196,8 @@ my %aa_tab = (
 
         return($chunkN)
         }
-#Find n and gc of aa leading nt
-sub two_bp_n_GC{
+#Find n and gc of the two bp leading a codon
+sub two_bp_n(){
 
 my $aa = $_[0];
 my %nt2_tab = (
@@ -251,31 +223,7 @@ my %nt2_tab = (
         "R" => 2
         );
 
-my %gcClamp = (
-        "I" => 0,
-        "L" => 0,
-        "V" => 0,
-        "F" => 0,
-        "M" => 0,
-        "C" => 1,
-        "A" => 2,
-        "G" => 2,
-        "P" => 2,
-        "T" => 1,
-        "S" => 1,
-        "Y" => 0,
-        "W" => 1,
-        "Q" => 0,
-        "N" => 0,
-        "H" => 0,
-        "E" => 0,
-        "D" => 0,
-        "K" => 0,
-        "R" => 2
-        );
-my @aa = $nt2_tab{$aa};
-push(@aa,  $gcClamp{$aa});
-return(@aa);
+return($nt2_tab{$aa});
 }
 
 
@@ -287,3 +235,5 @@ The script takes an alignment file (tested with clustalo aa alignment, though it
 );
 exit;
 }
+
+
