@@ -3,14 +3,15 @@
 #Eric Morrison
 #042818
 #Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [min length to preserve sequence] [max degeneracy for primer]
-#The script takes an amino acid alignment file as input (tested with clustalo aa alignment). The alignments are searched by positions for gaps (-). Chunks of sequence meeting the minimum length requirement are retained and output as separate fasta files (e.g. inputname.1).
-
+#This script was designed to search protein sequence alignments for suitable sequences to use as a clade specific barcode for meta-barcoding studies. The clade of bacteria in question is an abundant and geoprahically widespread genus occuring in soil for which 75 strain-level de novo genome sequences are available. The genome sequences were searched for potential orthologous genes shared across all of the strains generating a set of >800 protein sequences. The >800 protein sequences were aligned using clustal omega, and this script was then used to search the protein alignments for potential barcode regions. The criteria used for the search are: low degeneracy within a 20 bp primer region, no degeneracy in the two 3' nucleotides of potential forward or reverse primers, no gaps in barcode region, highest possible number of nucleotide combinations within the barcode region for good ability to resolve strains based on the barcode. Primer degeneracy and number of possible nucleotide combinations within the barcode are calculated based on the number of codons encoding each amino acid. For calculation of degeneracy in 3' nucleotides only the first two bases of the amino acid are considered.
+#The script takes an amino acid alignment file as the first argument (tested with clustalo alignment), and minimum barcode length and maximum primer degeneracy as the seond and third arguments, respectively. Suggested values for minimum barcode length is >100 amino acids which is suitable for sequencing using Illumina HiSeq 2 x 250 PE sequencing chemistry. Maximum primer generacy is recommended to be set intially at <100, with the lowest degeneracy preffered for potential primer sets. 
+#The output is tab-separated and written to STDOUT as follows: forward primer position in the sequence, reverse primer position, forward primer degeneracy, reverse primer degeneracy, length of barcode sequence, number of barcode nucleotide combinations.
 use strict;
 use warnings;
 
 if(scalar(@ARGV) == 0 || $ARGV[0] eq "-h")
 	{
-	usage();
+	&usage();
 	}
 if(defined($ARGV[1]) == 0)
 	{
@@ -69,30 +70,25 @@ for(my $i = 0;$i<$seqLen-6;$i++)
         	#Search with 7 aa window for primers
 	        my @primerChunk = @seq[$i..$i+6];
 	
-		#check for gaps
-                my $gap = 0;
-                foreach my $base(@primerChunk)
-                        {
-                        if($base eq "-")
-                                {
-                                $gap = 1;
-                                }
-                        }
-                if($gap == 1)
-                        {
-                	$primerN[$i] = "NA";
-			$lastBaseN[$i] = "NA";
-			$firstBaseN[$i] = "NA";
-                        last;
-                        }
-
 	        #find n
 	       	my $lastBase = pop(@primerChunk);
-		my $firstBase = @primerChunk[0];
+		my $firstBase = $primerChunk[0];
 	        my $aaN = find_aa_n(@primerChunk);
-	        my $lastBaseN = two_bp_n($lastBase);
+		my $lastBaseN = two_bp_n($lastBase);
+		
+		#check for gaps
+		if($aaN eq "NA" || $lastBaseN eq "NA")
+			{
+			$primerN[$i] = "NA";
+			$lastBaseN[$i] = "NA";
+			$firstBaseN[$i] = "NA";
+			last;
+			}
+	       	
+		#find 5' n
 		my $firstBaseN = two_bp_n($firstBase);
-	        $aaN *= $lastBaseN;
+	        
+		$aaN *= $lastBaseN;
 		$primerN[$i] += $aaN;
 		$lastBaseN[$i] += $lastBaseN;
 		$firstBaseN[$i] += $firstBaseN;
@@ -107,7 +103,7 @@ for(my $i = 0;$i<$seqLen-6;$i++)
 #user supplied max degeneracy, and no degeneracy in last two nt of primer (i.e. == 1)
 my %forward;
 my %reverse;
-for(my $i = 0;$i<@primerN;$i++)
+for(my $i = 0; $i<@primerN; $i++)
 	{
 	if($primerN[$i] eq "NA")
 		{
@@ -130,25 +126,27 @@ for(my $i = 0;$i<@primerN;$i++)
 foreach my $f (sort{$a <=> $b} keys %forward)
 	{
 	REVERSE:
-	foreach my $r (sort{$a <=> $b} keys %reverse))
+	foreach my $r (sort{$a <=> $b} keys %reverse)
 		{
 		#test length
 		if($r-($f+7) < $minLen){next REVERSE;}
 		#test gaps, if none calculate degeneracy
 		my $barcodeN = 0;
+		my $barcodeLen = 0;
 		foreach my $id (keys %aln)
 			{	
-			my $seq = substr($aln{$id}, $f+7, $r-($f+7);
+			my $seq = substr($aln{$id}, $f+7, $r-($f+7));
 			if($seq =~ /-/)
 				{
 				next REVERSE;
 				}else{
 				my @seq = split("",$seq);
 				$barcodeN += find_aa_n(@seq);
+				$barcodeLen = scalar(@seq);
 				}	
 			}
 		#print forward and reverse primer position and degeneracy, then print barcode length and degeneracy
-		print "$f\t$r\t$forward{$f}\t$reverse{$r}\t", length($seq), $barcodeN/$numSeqs, "\n";
+		print "$f\t$r\t$forward{$f}\t$reverse{$r}\t$barcodeLen\t", $barcodeN/$numSeqs, "\n";
 		}
 	}
 
@@ -157,7 +155,8 @@ foreach my $f (sort{$a <=> $b} keys %forward)
 #SUBS#
 ######
 
-sub find_aa_n(){
+#find numer of nucleotide combinations for an amino acid sequence
+sub find_aa_n{
 my @chunk = @_;
 my $chunkN = 1;
 
@@ -193,11 +192,11 @@ my %aa_tab = (
                         $chunkN *= $aa_tab{$aa};
                         }
                 }
-
-        return($chunkN)
+        return($chunkN);
         }
-#Find n and gc of the two bp leading a codon
-sub two_bp_n(){
+
+#Find n of the two bp leading a codon
+sub two_bp_n{
 
 my $aa = $_[0];
 my %nt2_tab = (
@@ -222,15 +221,24 @@ my %nt2_tab = (
         "K" => 1,
         "R" => 2
         );
-
-return($nt2_tab{$aa});
+if(defined($nt2_tab{$aa}) == 0)
+	{
+	return("NA")
+	}else{
+	return($nt2_tab{$aa});
+	}
 }
 
 
 sub usage(){
 	print STDERR q(
-Usage: perl aln_gap_filter.pl [alignment fasta file] [min length to preserve sequence]
-The script takes an alignment file (tested with clustalo aa alignment, though it should work fine with nucleotides and/or other fasta format alignments). The alignments are searched by positions for gaps (-). Chunks of sequence meeting the minimum length requirement are retained and are output to separate fasta files (e.g. inputname.1).
+Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [min length to preserve sequence] [max degeneracy for primer]
+
+This script was designed to search protein sequence alignments for suitable sequences to use as a clade specific barcode for meta-barcoding studies. The clade of bacteria in question is an abundant and geoprahically widespread genus occuring in soil for which 75 strain-level de novo genome sequences are available. The genome sequences were searched for potential orthologous genes shared across all of the strains generating a set of >800 protein sequences. The >800 protein sequences were aligned using clustal omega, and this script was then used to search the protein alignments for potential barcode regions. The criteria used for the search are: low degeneracy within a 20 bp primer region, no degeneracy in the two 3' nucleotides of potential forward or reverse primers, no gaps in barcode region, highest possible number of nucleotide combinations within the barcode region for good ability to resolve strains based on the barcode. Primer degeneracy and number of possible nucleotide combinations within the barcode are calculated based on the number of codons encoding each amino acid. For calculation of degeneracy in 3' nucleotides only the first two bases of the amino acid are considered.
+
+The script takes an amino acid alignment file as the first argument (tested with clustalo alignment), and minimum barcode length and maximum primer degeneracy as the seond and third arguments, respectively. Suggested values for minimum barcode length is >100 amino acids which is suitable for sequencing using Illumina HiSeq 2 x 250 PE sequencing chemistry. Maximum primer generacy is recommended to be set intially at <100, with the lowest degeneracy preffered for potential primer sets. 
+
+The output is tab-separated and written to STDOUT as follows: forward primer position in the sequence, reverse primer position, forward primer degeneracy, reverse primer degeneracy, length of barcode sequence, number of barcode nucleotide combinations. The primer positions reported are the first amino acid position of each primer.
 
 );
 exit;
