@@ -10,7 +10,7 @@ use warnings;
 ######
 #SUBS#
 ######
-sub usage(){
+sub usage{
 	print STDERR q(
 Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [min length to preserve sequence] [max degeneracy for primer]
 
@@ -168,7 +168,7 @@ return(@alnVals);
 ######
 {
 if(scalar(@ARGV) == 0 || $ARGV[0] eq "-h"){
-	&usage();
+	&usage;
 	}
 if(defined($ARGV[1]) == 0){
 	die "\nYou didn't input a minimum length. Exiting...\n\n";
