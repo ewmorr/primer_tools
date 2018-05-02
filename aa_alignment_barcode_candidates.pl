@@ -109,6 +109,31 @@ foreach my $i (@mult){
 return($mult);
 }
 
+sub avg_aln_degen{
+my $alnRef = shift @_;
+my($numSeqs, $seqLen) = @_;
+my %aln = %$alnRef;
+
+my @degen;
+my @degen2;
+for(my $i=0;$i<$seqLen;$i++){
+	foreach my $id (keys %aln){
+		my $aaN = find_aa_n(substr($aln{$id}, $i, 1));
+		my $aa2N = two_bp_n(substr($aln{$id}, $i, 1));
+		if($aaN eq "NA"){
+			$degen[$i] = "NA";
+			$degen2[$i] = "NA";
+			last;
+			}
+		$degen[$i] += $aaN;
+		$degen2[$i] += $aaN;
+		}
+	}
+@degen = div_by(@degen, $numSeqs);
+@degen2 = div_by(@degen2, $numSeqs);
+return(\@degen, \@degen2);
+}
+
 sub process_fasta{
 my $alnRef = $_[0];
 my @aln = @$alnRef;
@@ -167,23 +192,10 @@ my %aln = %$alnRef;
 my $numSeqs = $alnVals[0];
 my $seqLen = $alnVals[1];
 
-my @degen;
-my @degen2;
-for(my $i=0;$i<$seqLen;$i++){
-	foreach my $id (keys %aln){
-		my $aaN = find_aa_n(substr($aln{$id}, $i, 1));
-		my $aa2N = two_bp_n(substr($aln{$id}, $i, 1));
-		if($aaN eq "NA"){
-			$degen[$i] = "NA";
-			$degen2[$i] = "NA";
-			last;
-			}
-		$degen[$i] += $aaN;
-		$degen2[$i] += $aaN;
-		}
-	}
-@degen = div_by(@degen, $numSeqs);
-@degen2 = div_by(@degen2, $numSeqs);
+my @avgDegens = avg_aln_degen(\%aln, $numSeqs, $seqLen);
+my($degenRef, $degen2Ref) = @avgDegens;
+my @degen = @$degenRef;
+my @degen2 = @$degen2Ref;
 
 for(my $i = 6; $i < @degen2 - 6 - $minLen; $i++){#need to check these
 	if($degen2[$i] eq "NA"){next;}
