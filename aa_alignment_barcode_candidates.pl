@@ -143,7 +143,7 @@ sub process_fasta{
     return(@alnVals);
 }
 
-sub avg_aln_degen{
+sub avg_degen_in_aln{
     my $alnRef = shift @_;
     my($numSeqs, $seqLen) = @_;
     my %aln = %$alnRef;
@@ -232,7 +232,7 @@ my %aln = %$alnRef;
 my $numSeqs = $alnVals[0];
 my $seqLen = $alnVals[1];
 
-my @avgDegens = avg_aln_degen(\%aln, $numSeqs, $seqLen);
+my @avgDegens = avg_degen_in_aln(\%aln, $numSeqs, $seqLen);
 my($degenRef, $degen2Ref) = @avgDegens;
 my @degen = @$degenRef;
 my @degen2 = @$degen2Ref;
