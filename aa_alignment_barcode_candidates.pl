@@ -160,7 +160,7 @@ sub avg_aln_degen{
                 last;
             }
             $degen[$i] += $aaN;
-            $degen2[$i] += $aaN;
+            $degen2[$i] += $aa2N;
         }
     }
     @degen = div_by(@degen, $numSeqs);
@@ -176,24 +176,25 @@ sub find_and_print_primer_pairs{
     my @degen2 = @$degenRef2;
 
     for(my $i = 6; $i < @degen2 - 7 - $minLen; $i++){
-        if($degen2[$i] eq "NA"){next;}print $i, "\t";
+        if($degen2[$i] eq "NA"){next;}
         my $fwdDegen = mult_arr(@degen[$i-6..$i-1]);
         if($fwdDegen eq "NA"){next;}
  
         if($degen2[$i] == 1 and $fwdDegen < $maxDegen){
             for(my $ii = $i + $minLen + 1; $ii < @degen2 - 6; $ii++){
-                if($degen2[$ii] eq "NA"){next;}print $ii, "\n";
-                my $revDegen = mult_arr(@degen[$ii+1..$ii+6]);
-                if($revDegen eq "NA"){next;}
+                if($degen2[$ii] eq "NA"){next;}
+                my $revDegen = mult_arr(@degen[$ii..$ii+5]);
+                if($revDegen eq "NA" or $degen2[$ii+6] eq "NA"){next;}
+                $revDegen *= $degen2[$ii+6];
     
                 if($degen2[$ii] == 1 and $revDegen < $maxDegen){
                     my $seq = join("", @degen[$i..$ii-1]);
                     if($seq =~ /NA/){next;}
                     my $barcodeDegen = mult_arr(@degen[$i..$ii-1]);
                     print "$fileName\t", $i-6, "\t$ii\t";
-                    printf("%.0f", $fwdDegen);
+                    printf("%.1f", $fwdDegen);
                     print "\t";
-                    printf("%.0f", $revDegen);
+                    printf("%.1f", $revDegen);
                     print "\t", $ii-$i-1, "\t";
                     printf("%e", $barcodeDegen);
                     print "\n";
