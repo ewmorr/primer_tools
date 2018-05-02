@@ -25,144 +25,183 @@ exit;
 }
 #find numer of nucleotide combinations for an amino acid sequence
 sub find_aa_n{
-my $aa = $_[0];
-my %aa_tab = (
-        "I" => 3,
-        "L" => 6,
-        "V" => 4,
-        "F" => 2,
-        "M" => 1,
-        "C" => 2,
-        "A" => 4,
-        "G" => 4,
-        "P" => 4,
-        "T" => 4,
-        "S" => 6,
-        "Y" => 2,
-        "W" => 1,
-        "Q" => 2,
-        "N" => 2,
-        "H" => 2,
-        "E" => 2,
-        "D" => 2,
-        "K" => 2,
-        "R" => 6);
-
-if(defined($aa_tab{$aa}) == 0){
-	return("NA");
-	}else{
-	return($aa_tab{$aa});
-	}
+    my $aa = $_[0];
+    my %aa_tab = (
+    "I" => 3,
+    "L" => 6,
+    "V" => 4,
+    "F" => 2,
+    "M" => 1,
+    "C" => 2,
+    "A" => 4,
+    "G" => 4,
+    "P" => 4,
+    "T" => 4,
+    "S" => 6,
+    "Y" => 2,
+    "W" => 1,
+    "Q" => 2,
+    "N" => 2,
+    "H" => 2,
+    "E" => 2,
+    "D" => 2,
+    "K" => 2,
+    "R" => 6);
+    
+    if(defined($aa_tab{$aa}) == 0){
+        return("NA");
+    }else{
+        return($aa_tab{$aa});
+    }
 }
 
 #Find n of the two bp leading a codon
 sub two_bp_n{
-my $aa = $_[0];
-my %nt2_tab = (
-        "I" => 1,
-        "L" => 2,
-        "V" => 1,
-        "F" => 1,
-        "M" => 1,
-        "C" => 1,
-        "A" => 1,
-        "G" => 1,
-        "P" => 1,
-        "T" => 1,
-        "S" => 2,
-        "Y" => 1,
-        "W" => 1,
-        "Q" => 1,
-        "N" => 1,
-        "H" => 1,
-        "E" => 1,
-        "D" => 1,
-        "K" => 1,
-        "R" => 2
-        );
-if(defined($nt2_tab{$aa}) == 0){
-	return("NA");
-	}else{
-	return($nt2_tab{$aa});
-	}
+    my $aa = $_[0];
+    my %nt2_tab = (
+    "I" => 1,
+    "L" => 2,
+    "V" => 1,
+    "F" => 1,
+    "M" => 1,
+    "C" => 1,
+    "A" => 1,
+    "G" => 1,
+    "P" => 1,
+    "T" => 1,
+    "S" => 2,
+    "Y" => 1,
+    "W" => 1,
+    "Q" => 1,
+    "N" => 1,
+    "H" => 1,
+    "E" => 1,
+    "D" => 1,
+    "K" => 1,
+    "R" => 2
+    );
+    if(defined($nt2_tab{$aa}) == 0){
+        return("NA");
+    }else{
+        return($nt2_tab{$aa});
+    }
 }
 
 sub div_by{
-my $divBy = pop(@_);
-my @div = @_;
-for(my $i = 0; $i < @div; $i++){
-	if($div[$i] eq "NA"){
-		next;
-		}else{
-		$div[$i] /= $divBy;
-		}
-	}
-return(@div);	
+    my $divBy = pop(@_);
+    my @div = @_;
+    for(my $i = 0; $i < @div; $i++){
+        if($div[$i] eq "NA"){
+            next;
+        }else{
+            $div[$i] /= $divBy;
+        }
+    }
+    return(@div);
 }
 
 sub mult_arr{
-my @mult = @_;
-my $mult = 1;
-foreach my $i (@mult){
-	$mult *= $i;
-	}
-return($mult);
-}
-
-sub avg_aln_degen{
-my $alnRef = shift @_;
-my($numSeqs, $seqLen) = @_;
-my %aln = %$alnRef;
-
-my @degen;
-my @degen2;
-for(my $i=0;$i<$seqLen;$i++){
-	foreach my $id (keys %aln){
-		my $aaN = find_aa_n(substr($aln{$id}, $i, 1));
-		my $aa2N = two_bp_n(substr($aln{$id}, $i, 1));
-		if($aaN eq "NA"){
-			$degen[$i] = "NA";
-			$degen2[$i] = "NA";
-			last;
-			}
-		$degen[$i] += $aaN;
-		$degen2[$i] += $aaN;
-		}
-	}
-@degen = div_by(@degen, $numSeqs);
-@degen2 = div_by(@degen2, $numSeqs);
-return(\@degen, \@degen2);
+    my @mult = @_;
+    my $mult = 1;
+    foreach my $i (@mult){
+        if($i eq "NA"){
+            $mult = "NA";
+            last;
+            }else{
+            $mult *= $i;
+            }
+    }
+    return($mult);
 }
 
 sub process_fasta{
-my $alnRef = $_[0];
-my @aln = @$alnRef;
-#rm MS linefeeds
-if(scalar(@aln) == 1){
-	$aln[0] =~ s/\r|\n|\r\n/:<:<:<:<::/g;
-	@aln = split(":<:<:<:<::", $aln[0]);
-	}
-my $aln = join(":<:<:<:<", @aln);
-$aln =~ s/\n|\r|\r\n//g;
-@aln = split(">", $aln);
-shift @aln;
-#split alignments to hash
-my %aln;
-my $seqLen;
-my $numSeqs = 0;
-for my $seq (@aln){
-	my @seq = split(":<:<:<:<", $seq);
-	my $head = shift @seq;
-	$seq = join("", @seq);
-	$aln{$head} = $seq;
-	$seqLen = length($seq);
-	$numSeqs++;
-	}
-
-my @alnVals = (\%aln, $numSeqs, $seqLen);
-return(@alnVals);
+    my $alnRef = $_[0];
+    my @aln = @$alnRef;
+    #rm MS linefeeds
+    if(scalar(@aln) == 1){
+        $aln[0] =~ s/\r|\n|\r\n/:<:<:<:<::/g;
+        @aln = split(":<:<:<:<::", $aln[0]);
+    }
+    my $aln = join(":<:<:<:<", @aln);
+    $aln =~ s/\n|\r|\r\n//g;
+    @aln = split(">", $aln);
+    shift @aln;
+    #split alignments to hash
+    my %aln;
+    my $seqLen;
+    my $numSeqs = 0;
+    for my $seq (@aln){
+        my @seq = split(":<:<:<:<", $seq);
+        my $head = shift @seq;
+        $seq = join("", @seq);
+        $aln{$head} = $seq;
+        $seqLen = length($seq);
+        $numSeqs++;
+    }
+    
+    my @alnVals = (\%aln, $numSeqs, $seqLen);
+    return(@alnVals);
 }
 
+sub avg_aln_degen{
+    my $alnRef = shift @_;
+    my($numSeqs, $seqLen) = @_;
+    my %aln = %$alnRef;
+    
+    my @degen;
+    my @degen2;
+    for(my $i=0;$i<$seqLen;$i++){
+        foreach my $id (keys %aln){
+            my $aaN = find_aa_n(substr($aln{$id}, $i, 1));
+            my $aa2N = two_bp_n(substr($aln{$id}, $i, 1));
+            if($aaN eq "NA"){
+                $degen[$i] = "NA";
+                $degen2[$i] = "NA";
+                last;
+            }
+            $degen[$i] += $aaN;
+            $degen2[$i] += $aaN;
+        }
+    }
+    @degen = div_by(@degen, $numSeqs);
+    @degen2 = div_by(@degen2, $numSeqs);
+    return(\@degen, \@degen2);
+}
+
+sub find_and_print_primer_pairs{
+    my $degenRef = shift(@_);
+    my $degenRef2 = shift(@_);
+    my($minLen, $maxDegen, $fileName) = @_;
+    my @degen = @$degenRef;
+    my @degen2 = @$degenRef2;
+
+    for(my $i = 6; $i < @degen2 - 6 - $minLen; $i++){#need to check these
+        if($degen2[$i] eq "NA"){next;}
+        my $fwdDegen = mult_arr(@degen[$i-6..$i-1]);
+        if($fwdDegen eq "NA"){next;}
+ 
+        if($degen2[$i] == 1 and $fwdDegen < $maxDegen){
+            for(my $ii = $i + $minLen; $ii < @degen2 - 6; $ii++){
+                if($degen2[$ii] eq "NA"){next;}
+                my $revDegen = mult_arr(@degen[$ii+1..$ii+6]);
+                if($revDegen eq "NA"){next;}
+    
+                if($degen2[$ii] == 1 and $revDegen < $maxDegen){
+                    my $seq = join("", @degen[$i..$ii]);
+                    if($seq =~ /NA/){next;}
+                    my $barcodeDegen = mult_arr(@degen[$i..$ii]);
+                    print "$fileName\t", $i-6, "\t$ii\t";
+                    printf("%.0f", $fwdDegen);
+                    print "\t";
+                    printf("%.0f", $revDegen);
+                    print "\t", $ii-$i, "\t";
+                    printf("%e", $barcodeDegen);
+                    print "\n";
+                }
+            }
+        }
+    }
+}
 ######
 #MAIN#
 ######
@@ -197,33 +236,5 @@ my($degenRef, $degen2Ref) = @avgDegens;
 my @degen = @$degenRef;
 my @degen2 = @$degen2Ref;
 
-    find_and_print_primer_pairs(\@degen, \@degen2, $minLen, $maxDegen);
-sub(find_and_print_primer_pairs){
-    my $degenRef = shift(@_);
-    my $degenRef2 = shift(@_);
-    my($minLen, $maxDegen) = @_;
-    
-for(my $i = 6; $i < @degen2 - 6 - $minLen; $i++){#need to check these
-	if($degen2[$i] eq "NA"){next;}
-    my $fwdDegen = mult_arr($degen[$i-6..$i-1]);
-	if($degen2[$i] == 1 and $fwdDegen < $maxDegen){
-		for(my $ii = $i + $minLen; $ii < @degen2 - 6; $ii++){
-			if($degen2[$ii] eq "NA"){next;}
-            my $revDegen = mult_arr($degen[$ii+1..$ii+6]);
-			if($degen2[$ii] == 1 and $revDegen < $maxDegen){
-				my $seq = join("", @degen[$i..$ii]);
-				if($seq =~ /NA/){next;}
-				my $barcodeDegen = mult_arr(@degen[$i..$ii]);
-				print "$fileName\t", $i-6, "\t$ii\t";
-				printf("%.0f", $fwdDegen);
-				print "\t";
-				printf("%.0f", $revDegen);
-				print "\t", $ii-$i, "\t";
-				printf("%e", $barcodeDegen); 
-				print "\n";
-				}
-			}
-		}
-	}
-}
+find_and_print_primer_pairs(\@degen, \@degen2, $minLen, $maxDegen, $fileName);
 }
