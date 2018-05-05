@@ -80,6 +80,7 @@ sub two_bp_n{
     "K" => 1,
     "R" => 2
     );
+    
     if(defined($nt2_tab{$aa}) == 0){
         return("NA");
     }else{
