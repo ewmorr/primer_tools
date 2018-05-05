@@ -138,12 +138,11 @@ sub process_fasta{
         $seqLen = length($seq);
         $numSeqs++;
     }
-    
     my @alnVals = (\%aln, $numSeqs, $seqLen);
     return(@alnVals);
 }
 
-sub avg_aln_degen{
+sub get_avg_aln_degen{
     my $alnRef = shift @_;
     my($numSeqs, $seqLen) = @_;
     my %aln = %$alnRef;
@@ -228,14 +227,10 @@ my $fileName = $1;
 
 my @alnVals = process_fasta(\@aln);
 my $alnRef = shift(@alnVals);
-my %aln = %$alnRef;
-my $numSeqs = $alnVals[0];
-my $seqLen = $alnVals[1];
+my $numSeqs = shift(@alnVals);
+my $seqLen = shift(@alnVals);
 
-my @avgDegens = avg_aln_degen(\%aln, $numSeqs, $seqLen);
-my($degenRef, $degen2Ref) = @avgDegens;
-my @degen = @$degenRef;
-my @degen2 = @$degen2Ref;
+my @avgDegens = get_avg_aln_degen($alnRef, $numSeqs, $seqLen);
 
-find_and_print_primer_pairs(\@degen, \@degen2, $minLen, $maxDegen, $fileName);
+find_and_print_primer_pairs($avgDegens[0], $avgDegens[1], $minLen, $maxDegen, $fileName);
 }
