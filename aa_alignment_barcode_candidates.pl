@@ -175,21 +175,24 @@ sub find_and_print_primer_pairs{
     my @degen2 = @$degenRef2;
 
     for(my $i = 6; $i < @degen2 - 7 - $minLen; $i++){
-        if($degen2[$i] eq "NA"){next;}
+        if($degen2[$i] eq "NA" or $degen2[$i] > 1){next;}
+        
         my $fwdDegen = mult_arr(@degen[$i-6..$i-1]);
         if($fwdDegen eq "NA"){next;}
- 
-        if($degen2[$i] == 1 and $fwdDegen < $maxDegen){
+        if($fwdDegen < $maxDegen){
+            
             for(my $ii = $i + $minLen + 1; $ii < @degen2 - 6; $ii++){
-                if($degen2[$ii] eq "NA"){next;}
+                if($degen2[$ii] eq "NA" or $degen2[$ii] > 1 or $degen2[$ii+6] eq "NA"){next;}
+                
                 my $revDegen = mult_arr(@degen[$ii..$ii+5]);
-                if($revDegen eq "NA" or $degen2[$ii+6] eq "NA"){next;}
+                if($revDegen eq "NA"){next;}
                 $revDegen *= $degen2[$ii+6];
-    
-                if($degen2[$ii] == 1 and $revDegen < $maxDegen){
+                if($revDegen < $maxDegen){
+                    
                     my $seq = join("", @degen[$i..$ii-1]);
                     if($seq =~ /NA/){next;}
                     my $barcodeDegen = mult_arr(@degen[$i..$ii-1]);
+                    
                     print "$fileName\t", $i-6, "\t$ii\t";
                     printf("%.1f", $fwdDegen);
                     print "\t";
