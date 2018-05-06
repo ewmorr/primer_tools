@@ -19,14 +19,12 @@ my @fasta = split(">", $fasta);
 shift@fasta;
 
 my %fasta;
-foreach my $seq(@fasta)
-	{
+foreach my $seq(@fasta){
 	my @seq = split("::::::::::", $seq);
 	my$id = shift@seq;
 	my@id = split(" ", $id);
 	my $sequ = join("", @seq);
-	if($searchID eq $id[0] || $searchID eq "all")
-		{
+	if($searchID eq $id[0] || $searchID eq "all"){
 		print ">", $id[0], "\n", substr($sequ, $start-1, $end-$start+1), "\n"; #offset starts at 0
 		}
 	}

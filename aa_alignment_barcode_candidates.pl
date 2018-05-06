@@ -110,7 +110,7 @@ sub mult_arr{
             last;
             }else{
             $mult *= $i;
-            }
+        }
     }
     return($mult);
 }

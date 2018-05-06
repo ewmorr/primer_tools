@@ -8,8 +8,7 @@ use strict;
 use warnings;
 
 
-if(scalar(@ARGV) == 0 || $ARGV[0] eq "-h")
-	{
+if(scalar(@ARGV) == 0 || $ARGV[0] eq "-h"){
 	&usage();
 	}
 
@@ -19,15 +18,13 @@ my $primerLen = $ARGV[1];
 
 
 open(IN, "$inaa") || die "Can't open amino acid sequence file.\n";
-if(defined($ARGV[1]) == 0)
-	{
+if(defined($ARGV[1]) == 0){
 	die "\nYou didn't input a primer length. Exiting...\n\n"
 	}
 
 chomp(my @aa = <IN>);
 
-if(scalar(@aa) == 1)
-	{
+if(scalar(@aa) == 1){
 	$aa[0] =~ s/\r|\n|\r\n/:<:<:<:<::/g;
 	@aa = split(":<:<:<:<::", $aa[0]);
 	}
@@ -35,16 +32,14 @@ if(scalar(@aa) == 1)
 my $aa = join(":<:<:<:<", @aa);
 @aa = split(">", $aa);
 shift @aa;
-foreach my $seq (@aa)
-	{
+foreach my $seq (@aa){
 	my @seq = split(":<:<:<:<", $seq);
 	my $id = shift@seq;
 	$seq = join("", @seq);
 	@seq = split("", $seq);
 	
 	my $pos = 1;
-	while(@seq >= $primerLen)
-		{
+	while(@seq >= $primerLen){
 		my @primerChunk = @seq[0..$primerLen-1];
 		my $aan = find_aa_n(@primerChunk);
 		print $id, "\t", $pos, "\t", $aan, "\n";
@@ -81,11 +76,8 @@ my %aa_tab = (
 	"K" => 2,
 	"R" => 6);
 
-
-	foreach my $aa (@chunk)
-		{
-		if(defined($aa_tab{$aa}) == 0)# in case of gaps or other non-aa characters
-			{
+	foreach my $aa (@chunk){
+		if(defined($aa_tab{$aa}) == 0)# in case of gaps or other non-aa characters{
 			$chunkN = "NA";
 			last;
 			}else{

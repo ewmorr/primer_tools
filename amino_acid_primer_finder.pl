@@ -10,8 +10,7 @@ use strict;
 use warnings;
 
 
-if(scalar(@ARGV) == 0 || $ARGV[0] eq "-h")
-	{
+if(scalar(@ARGV) == 0 || $ARGV[0] eq "-h"){
 	&usage();
 	}
 
@@ -22,8 +21,7 @@ open(IN, "$inaa") || die "Can't open amino acid sequence file.\n";
 chomp(my @aa = <IN>);
 
 #process MS newlines if necessary
-if(scalar(@aa) == 1)
-	{
+if(scalar(@aa) == 1){
 	$aa[0] =~ s/\r|\n|\r\n/:<:<:<:<::/g;
 	@aa = split(":<:<:<:<::", $aa[0]);
 	}
@@ -34,16 +32,14 @@ shift @aa;
 
 
 #do stuff. finally...
-foreach my $seq (@aa)
-	{
+foreach my $seq (@aa){
 	my @seq = split(":<:<:<:<", $seq);
 	my $id = shift@seq;
 	$seq = join("", @seq);
 	@seq = split("", $seq);
 	
 	my $pos = 1;
-	while(@seq >= 7)
-		{
+	while(@seq >= 7){
 		my @primerChunk = @seq[0..6];
 		
 		#intitalize reporting vars
@@ -52,15 +48,12 @@ foreach my $seq (@aa)
 		
 		#check for gaps
 		my $gap = 0;
-		foreach my $base(@primerChunk)
-			{
-			if($base eq "-")
-				{
+		foreach my $base(@primerChunk){
+			if($base eq "-"){
 				$gap = 1;
 				}
 			}
-		if($gap == 1)
-			{
+		if($gap == 1){
 			print $id, "\t", $pos, "\t", $aan, "\t", $gcClamp, "\n";
 			shift @seq;
 			$pos++;
@@ -113,8 +106,7 @@ my %aa_tab = (
 	"K" => 2,
 	"R" => 6);
 
-	foreach my $aa (@chunk)
-		{
+	foreach my $aa (@chunk){
 		$chunkN *= $aa_tab{$aa};
 		}
 	
