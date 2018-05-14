@@ -195,11 +195,11 @@ sub find_and_print_primer_pairs{
     my $degenRef = shift(@_);
     my $degenRef2 = shift(@_);
     my $alnRef = shift(@_);
-    my($minLen, $maxDegen, $fileName, $out) = @_;
+    my($minLen, $maxDegen, $fileName) = @_;
     my @degen = @$degenRef;
     my @degen2 = @$degenRef2;
     
-    open(OUT, ">$out") || die "Can't open output for primer sequences\n";
+    open(OUT, ">$fileName.primers.fasta") || die "Can't open output for primer sequences\n";
 
     for(my $i = 6; $i < @degen2 - 7 - $minLen; $i++){
         if($degen2[$i] eq "NA"){next;}
@@ -255,9 +255,8 @@ if(defined($ARGV[2]) == 0){
 	}
 
 my $in = $ARGV[0];
-my $out = $ARGV[1];
-my $minLen = $ARGV[2];
-my $maxDegen = $ARGV[3];
+my $minLen = $ARGV[1];
+my $maxDegen = $ARGV[2];
 
 open(IN, "$in") || die "Can't open amino acid sequence file.\n";
 chomp(my @aln = <IN>);
@@ -271,5 +270,5 @@ my $seqLen = shift(@alnVals);
 
 my @avgDegens = get_avg_aln_degen($alnRef, $numSeqs, $seqLen);
 
-find_and_print_primer_pairs($avgDegens[0], $avgDegens[1], $alnRef, $minLen, $maxDegen, $fileName, $out);
+find_and_print_primer_pairs($avgDegens[0], $avgDegens[1], $alnRef, $minLen, $maxDegen, $fileName);
 }
