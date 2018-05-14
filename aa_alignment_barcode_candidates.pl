@@ -220,9 +220,10 @@ sub find_and_print_primer_pairs{
                     my $seq = join("", @degen[$i..$ii-1]);
                     if($seq =~ /NA/){next;}
                     
-                    my $fwdSeq = check_for_subs_in_primer_and_get_seq($alnRef, $i);#Do this calc after other checks bc this is 7*n-seqs, could be moved up though
+                    my $fwdSeq = check_for_subs_in_primer_and_get_seq($alnRef, $i-6);#Do this calc after other checks bc this is 7*n-seqs, could be moved up though
+                    if($fwdSeq =~ /1/){next;}
                     my $revSeq = check_for_subs_in_primer_and_get_seq($alnRef, $ii);
-                    if($fwdSeq =~ /1/ or $revSeq =~ /1/){next;}
+                    if($revSeq =~ /1/){next;}
                     
                     my $barcodeDegen = mult_arr(@degen[$i..$ii-1]);
                     print "$fileName\t", $i-6, "\t$ii\t";
@@ -233,7 +234,7 @@ sub find_and_print_primer_pairs{
                     printf("%e", $barcodeDegen);
                     print "\n";
                     
-                    print OUT ">", $fileName, "_positions_", $i, "-", $ii, "\n", $fwdSeq, "-", $revSeq, "\n";
+                    print OUT ">", $fileName, "_positions_", $i-6, "-", $ii, "\n", $fwdSeq, "-", $revSeq, "\n";
                 }
             }
         }
