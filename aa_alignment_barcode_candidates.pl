@@ -199,7 +199,7 @@ sub find_and_print_primer_pairs{
     my @degen = @$degenRef;
     my @degen2 = @$degenRef2;
     
-    open(OUT, ">$fileName.primers.fasta") || die "Can't open output for primer sequences\n";
+    open(OUT, ">$fileName".".primers.fasta") || die "Can't open output for primer sequences\n";
 
     for(my $i = 6; $i < @degen2 - 7 - $minLen; $i++){
         if($degen2[$i] eq "NA"){next;}
