@@ -115,6 +115,29 @@ sub mult_arr{
     return($mult);
 }
 
+sub check_for_subs_in_primer_and_get_seq{
+    my $alnRef = shift(@_);
+    my $pos = shift(@_);
+    my %aln = %$alnRef;
+    
+    my @subs;
+    for(my $i = $pos; $i < $pos + 7; $i++){
+        my %residues;
+        foreach my $id (keys %aln){
+            my $aa = substr($aln{$id}, $i, 1);
+            $residues{$aa} = 1;
+        }
+        my @residues = keys %residues;
+        if(scalar(@residues) > 1){
+            push(@subs, 1);
+        }else{
+            push(@subs, $residues[0]);
+        }
+    }
+    my $seq = join("", @subs);
+    return($seq);
+}
+
 sub process_fasta{
     my $alnRef = $_[0];
     my @aln = @$alnRef;
@@ -171,25 +194,36 @@ sub get_avg_aln_degen{
 sub find_and_print_primer_pairs{
     my $degenRef = shift(@_);
     my $degenRef2 = shift(@_);
-    my($minLen, $maxDegen, $fileName) = @_;
+    my $alnRef = shift(@_);
+    my($minLen, $maxDegen, $fileName, $out) = @_;
     my @degen = @$degenRef;
     my @degen2 = @$degenRef2;
+    
+    open(OUT, ">$out") || die "Can't open output for primer sequences\n";
 
     for(my $i = 6; $i < @degen2 - 7 - $minLen; $i++){
         if($degen2[$i] eq "NA"){next;}
+        
         my $fwdDegen = mult_arr(@degen[$i-6..$i-1]);
         if($fwdDegen eq "NA"){next;}
- 
         if($degen2[$i] == 1 and $fwdDegen < $maxDegen){
+            
             for(my $ii = $i + $minLen + 1; $ii < @degen2 - 6; $ii++){
                 if($degen2[$ii] eq "NA"){next;}
+                
                 my $revDegen = mult_arr(@degen[$ii..$ii+5]);
                 if($revDegen eq "NA" or $degen2[$ii+6] eq "NA"){next;}
+                
                 $revDegen *= $degen2[$ii+6];
-    
                 if($degen2[$ii] == 1 and $revDegen < $maxDegen){
+                    
                     my $seq = join("", @degen[$i..$ii-1]);
                     if($seq =~ /NA/){next;}
+                    
+                    my $fwdSeq = check_for_subs_in_primer_and_get_seq($alnRef, $i);#Do this calc after other checks bc this is 7*n-seqs, could be moved up though
+                    my $revSeq = check_for_subs_in_primer_and_get_seq($alnRef, $ii);
+                    if($fwdSeq =~ /1/ or $revSeq =~ /1/){next;}
+                    
                     my $barcodeDegen = mult_arr(@degen[$i..$ii-1]);
                     print "$fileName\t", $i-6, "\t$ii\t";
                     printf("%.1f", $fwdDegen);
@@ -198,6 +232,8 @@ sub find_and_print_primer_pairs{
                     print "\t", $ii-$i-1, "\t";
                     printf("%e", $barcodeDegen);
                     print "\n";
+                    
+                    print OUT ">", $fileName, "_positions_", $i, "-", $ii, "\n", $fwdSeq, "-", $revSeq, "\n";
                 }
             }
         }
@@ -218,8 +254,9 @@ if(defined($ARGV[2]) == 0){
 	}
 
 my $in = $ARGV[0];
-my $minLen = $ARGV[1];
-my $maxDegen = $ARGV[2];
+my $out = $ARGV[1];
+my $minLen = $ARGV[2];
+my $maxDegen = $ARGV[3];
 
 open(IN, "$in") || die "Can't open amino acid sequence file.\n";
 chomp(my @aln = <IN>);
@@ -233,5 +270,5 @@ my $seqLen = shift(@alnVals);
 
 my @avgDegens = get_avg_aln_degen($alnRef, $numSeqs, $seqLen);
 
-find_and_print_primer_pairs($avgDegens[0], $avgDegens[1], $minLen, $maxDegen, $fileName);
+find_and_print_primer_pairs($avgDegens[0], $avgDegens[1], $alnRef, $minLen, $maxDegen, $fileName, $out);
 }
