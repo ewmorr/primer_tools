@@ -12,13 +12,15 @@ use warnings;
 ######
 sub usage{
 	print STDERR q(
-Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [min length to preserve sequence] [max degeneracy for primer]
+Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [max degeneracy for primer] [min length to preserve sequence]
 
 This script was designed to search protein sequence alignments for suitable sequences to use as a clade specific barcode for meta-barcoding studies. The clade of bacteria in question is an abundant and geograhically widespread genus occuring in soil for which 75 strain-level de novo genome sequences are available. The genome sequences were searched for potential orthologous genes shared across all of the strains generating a set of >800 protein sequences. The >800 protein sequences were aligned using clustal omega, and this script was then used to search the protein alignments for potential barcode regions. The criteria used for the search are: low degeneracy within a 20 bp primer region, no degeneracy in the two 3' nucleotides of potential forward or reverse primers, no gaps in barcode region, highest possible number of nucleotide combinations within the barcode region for good ability to resolve strains based on the barcode. Primer degeneracy and number of possible nucleotide combinations within the barcode are calculated based on the number of codons encoding each amino acid. For calculation of degeneracy in 3' nucleotides only the first two bases of the amino acid are considered.
 
-The script takes an amino acid alignment file as the first argument (tested with clustalo alignment), and minimum barcode length and maximum primer degeneracy as the second and third arguments, respectively. Suggested value for minimum barcode length is >100 amino acids which is suitable for sequencing using Illumina HiSeq 2 x 250 PE sequencing chemistry. Maximum primer degeneracy is recommended to be set intially at <100, with the lowest degeneracy preffered for potential primer sets.
+The script takes an amino acid alignment file as the first argument (tested with clustalo alignment), and maximum primer degeneracy and minimum barcode length as the second and third arguments, respectively. Maximum primer degeneracy is recommended to be set intially at <100, with the lowest degeneracy preffered for potential primer sets. Suggested value for minimum barcode length is >100 amino acids which is suitable for sequencing using Illumina HiSeq 2 x 250 PE sequencing chemistry.
 
 The output is tab-separated and written to STDOUT as follows: filename, forward primer position in the sequence, reverse primer position, forward primer degeneracy, reverse primer degeneracy, length of barcode sequence, number of barcode nucleotide combinations. The primer positions reported are the first amino acid position of each primer.
+    
+In addition a fasta file is written (input_name.primers.fasta) with the amino acid sequence of primer pairs seaprated by a gap.
 
 );
 exit;
@@ -115,6 +117,29 @@ sub mult_arr{
     return($mult);
 }
 
+sub check_for_subs_in_primer_and_get_seq{
+    my $alnRef = shift(@_);
+    my $pos = shift(@_);
+    my %aln = %$alnRef;
+    
+    my @subs;
+    for(my $i = $pos; $i < $pos + 7; $i++){
+        my %residues;
+        foreach my $id (keys %aln){
+            my $aa = substr($aln{$id}, $i, 1);
+            $residues{$aa} = 1;
+        }
+        my @residues = keys %residues;
+        if(scalar(@residues) > 1){
+            push(@subs, 1);
+        }else{
+            push(@subs, $residues[0]);
+        }
+    }
+    my $seq = join("", @subs);
+    return($seq);
+}
+
 sub process_fasta{
     my $alnRef = $_[0];
     my @aln = @$alnRef;
@@ -171,9 +196,11 @@ sub get_avg_aln_degen{
 sub find_and_print_primer_pairs{
     my $degenRef = shift(@_);
     my $degenRef2 = shift(@_);
+    my $alnRef = shift(@_);
     my($minLen, $maxDegen, $fileName) = @_;
     my @degen = @$degenRef;
     my @degen2 = @$degenRef2;
+    
 
     for(my $i = 6; $i < @degen2 - 7 - $minLen; $i++){
         if($degen2[$i] eq "NA" or $degen2[$i] > 1){next;}
@@ -192,6 +219,12 @@ sub find_and_print_primer_pairs{
                     
                     my $seq = join("", @degen[$i..$ii-1]);
                     if($seq =~ /NA/){next;}
+                    
+                    my $fwdSeq = check_for_subs_in_primer_and_get_seq($alnRef, $i-6);#Do this calc after other checks bc this is 7*n-seqs, could be moved up though
+                    if($fwdSeq =~ /1/){next;}
+                    my $revSeq = check_for_subs_in_primer_and_get_seq($alnRef, $ii);
+                    if($revSeq =~ /1/){next;}
+                    
                     my $barcodeDegen = mult_arr(@degen[$i..$ii-1]);
                     
                     print "$fileName\t", $i-6, "\t$ii\t";
@@ -201,6 +234,9 @@ sub find_and_print_primer_pairs{
                     print "\t", $ii-$i-1, "\t";
                     printf("%e", $barcodeDegen);
                     print "\n";
+                    
+                    open(OUT, ">>$fileName".".primers.fasta") || die "Can't open output for primer sequences\n";
+                    print OUT ">", $fileName, "_positions_", $i-6, "-", $ii, "\n", $fwdSeq, "-", $revSeq, "\n";
                 }
             }
         }
@@ -221,8 +257,8 @@ if(defined($ARGV[2]) == 0){
 	}
 
 my $in = $ARGV[0];
-my $minLen = $ARGV[1];
-my $maxDegen = $ARGV[2];
+my $maxDegen = $ARGV[1];
+my $minLen = $ARGV[2];
 
 open(IN, "$in") || die "Can't open amino acid sequence file.\n";
 chomp(my @aln = <IN>);
@@ -236,5 +272,5 @@ my $seqLen = shift(@alnVals);
 
 my @avgDegens = get_avg_aln_degen($alnRef, $numSeqs, $seqLen);
 
-find_and_print_primer_pairs($avgDegens[0], $avgDegens[1], $minLen, $maxDegen, $fileName);
+find_and_print_primer_pairs($avgDegens[0], $avgDegens[1], $alnRef, $minLen, $maxDegen, $fileName);
 }
