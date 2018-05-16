@@ -2,7 +2,7 @@
 #aa_alignment_barcode_candidates.pl
 #Eric Morrison
 #042818
-#Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [min length to preserve sequence] [max degeneracy for primer]
+#Usage: perl aa_alignment_barcode_candidates.pl [alignment fasta file] [max degeneracy for primermin length to preserve sequence] [min length to preserve sequence]
 
 use strict;
 use warnings;
