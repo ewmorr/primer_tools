@@ -106,7 +106,7 @@ sub convert_aa_to_all_nt{
 		for(my $i = 0; $i < @ntSeqs; $i++){
 			$head =~ s/>//;
 			my $header = ">".$i."_".$head;
-			$ntSeqsAll{$header} = $ntSeqs[$i];
+			$ntSeqsAll{$head}{$header} = $ntSeqs[$i];
 		}
 	}
 	return(\%ntSeqsAll);
@@ -121,9 +121,7 @@ sub recursive_build_seq{
 	my @codons = @$codonsRef;
 	my @newNtSeqs = ();
 	if(scalar(@nt) == 0){
-		for(my $i = 0; $i < @codons; $i++){
-			$newNtSeqs[$i] = $codons[$i];
-		}
+		@newNtSeqs = @codons;
 	}else{
 		foreach my $seq (@nt){
 			foreach my $codon (@codons){
@@ -138,6 +136,37 @@ sub recursive_build_seq{
 	}
 }
 
+sub print_seqs_degen{
+	my($ntSeqs, $in) = @_;
+	my %ntSeqs = %$ntSeqs;
+	open(OUT, ">$in.degenerate.fna") || die "Can't open output\n";
+	foreach my $headers (sort {$a cmp $b} keys %ntSeqs){
+		if($headers =~ /r$/){
+			my $rcSeq = reverse_complement($ntSeqs{$headers});
+			$headers.="_rc";
+			$ntSeqs{$headers} = $rcSeq;
+		}
+	print OUT $headers, "\n", $ntSeqs{$headers}, "\n";
+	}
+}
+
+sub print_seqs_all{
+	my $ntSeqs  = shift @_;
+	my %ntSeqs = %$ntSeqs;
+	
+	foreach my $file (keys %ntSeqs){
+		open(OUT, ">$file.all_nts.fna") || die "Can't open output\n";
+	
+		foreach my $headers (sort {$a cmp $b} keys %{ $ntSeqs{$file} }){
+			if($headers =~ /r$/){
+				my $rcSeq = reverse_complement($ntSeqs{$file}{$headers});
+				$headers.="_rc";
+				$ntSeqs{$file}{$headers} = $rcSeq;
+			}
+			print OUT $headers, "\n", $ntSeqs{$file}{$headers}, "\n";
+		}
+	}
+}
 #MAIN#
 {
     my $in = $ARGV[0];
@@ -151,19 +180,11 @@ sub recursive_build_seq{
 	my %ntSeqs;
 	if($ARGV[1] eq "degenerate"){
 		my $ntSeqs = convert_aa_to_nt(\%faa);
-		%ntSeqs = %$ntSeqs;
+		print_seqs_degen($ntSeqs, $in);
 	}
 	if($ARGV[1] eq "all"){
 		my $ntSeqs = convert_aa_to_all_nt(\%faa);
-		%ntSeqs = %$ntSeqs;
-	}
-	foreach my $headers (sort {$a cmp $b} keys %ntSeqs){
-		if($headers =~ /r$/){
-			my $rcSeq = reverse_complement($ntSeqs{$headers});
-			$headers.="_rc";
-			$ntSeqs{$headers} = $rcSeq;
-		}
-		#$ntSeqs{$headers} = substr($ntSeqs{$headers}, 0, 20);
-		print $headers, "\n", $ntSeqs{$headers}, "\n";
+		print_seqs_all($ntSeqs);
+
 	}
 }
